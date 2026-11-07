@@ -1,0 +1,10 @@
+{
+  "name": "elev1stitch-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ELEV1STITCH embroidery digitizing website with a contact form that emails your inbox.",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "nodemailer": "10.3.1"
+  }
+}
