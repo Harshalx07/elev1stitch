@@ -666,6 +666,25 @@ img, canvas, video { max-width: 100%; }
 }
 @media (max-width: 600px) { .hoop { max-width: calc(100% - 56px); } .hoop .screw { right: -26px; width: 20px; } }
 
+
+/* =================== v5: performance =================== */
+/* no per-word GPU layers, no animated chrome repaints, no live blur over the moving background */
+.si, .sc { will-change: auto; }
+.chrome { animation: none; background-size: 100% 100%; }
+.tier, .ccard, .counters div, .numbers div, .term, .float-chip, .hero-chip, #quoteForm, .lb { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.nav.solid { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(5,5,6,.92); }
+.marquee { backdrop-filter: none; background: rgba(5,5,6,.85); }
+.tier { background: rgba(13,13,16,.94); }
+#quoteForm { background: rgba(13,13,16,.94); }
+.numbers div { background: rgba(5,5,6,.82); }
+.thread-glow { filter: none; stroke-width: 7; opacity: .16; }
+.hero-light { mix-blend-mode: normal; opacity: .6; }
+.vrow { will-change: transform; contain: layout style; }
+.wcard img { will-change: auto; }
+.wcard.inview img { will-change: transform; }
+section, .vmarq, footer.site { contain: layout style; }
+html.lenis-scrolling .wcard, html.lenis-scrolling .tier, html.lenis-scrolling .process li { pointer-events: none; }
+
 </style>
 </head>
 <body>

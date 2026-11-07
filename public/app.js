@@ -69,7 +69,7 @@ const sym = () => '$';
 /* ---------- smooth scroll ---------- */
 let lenis = null;
 if (!reduce && window.Lenis && hasGSAP) {
-  lenis = new Lenis({ lerp: 0.09, smoothWheel: true, wheelMultiplier: 1 });
+  lenis = new Lenis({ lerp: 0.1, smoothWheel: true, wheelMultiplier: 0.95, touchMultiplier: 1.4 });
   lenis.on('scroll', ScrollTrigger.update);
   gsap.ticker.add(t => lenis.raf(t * 1000));
   gsap.ticker.lagSmoothing(0);
@@ -401,7 +401,7 @@ $('#toc').innerHTML = $$('#legal h2').map(h => `<a href="#terms" data-t="${h.id}
 $('#toc').addEventListener('click', e => { const a = e.target.closest('[data-t]'); if (!a) return; e.preventDefault(); document.getElementById(a.dataset.t).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' }); });
 
 /* ---------- thread that sews the page ---------- */
-let threadLen = 0;
+let threadLen = 0, threadPts = [], homeH = 1, lastThreadP = -1;
 function buildThread() {
   const home = $('#view-home'); if (!home.classList.contains('active')) return;
   const W = home.clientWidth, H = home.scrollHeight;
@@ -425,21 +425,27 @@ function buildThread() {
   }
   ['#threadGlow', '#threadCore', '#threadMaskPath'].forEach(s => $(s).setAttribute('d', d));
   threadLen = $('#threadMaskPath').getTotalLength();
+  threadPts = []; const tp = $('#threadMaskPath');
+  for (let i = 0; i <= 600; i++) { const q = tp.getPointAtLength(threadLen * i / 600); threadPts.push([q.x, q.y]); }
+  homeH = home.scrollHeight; lastThreadP = -1;
   $('#threadMaskPath').style.strokeDasharray = `${threadLen} ${threadLen}`;
 }
 function drawThread(intro) {
   if (!threadLen) return;
   const home = $('#view-home');
   const rect = home.getBoundingClientRect();
-  let p = (innerHeight * .78 - rect.top) / home.scrollHeight;
+  let p = (innerHeight * .78 - rect.top) / homeH;
   p = Math.max(.055 * intro, Math.min(1, p));
   if (reduce) p = 1;
+  if (Math.abs(p - lastThreadP) < 0.0004) return;
+  lastThreadP = p;
   const drawn = threadLen * p;
   $('#threadMaskPath').style.strokeDashoffset = threadLen - drawn;
-  const path = $('#threadMaskPath');
-  const a = path.getPointAtLength(Math.max(0, drawn - 1)), b = path.getPointAtLength(Math.min(threadLen, drawn + 1));
-  const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
-  $('#needle').setAttribute('transform', `translate(${b.x},${b.y}) rotate(${ang})`);
+  const k = Math.min(599, Math.floor(p * 600)), f = p * 600 - k;
+  const A = threadPts[k], B = threadPts[k + 1];
+  const x = A[0] + (B[0] - A[0]) * f, y = A[1] + (B[1] - A[1]) * f;
+  const ang = Math.atan2(B[1] - A[1], B[0] - A[0]) * 180 / Math.PI;
+  $('#needle').setAttribute('transform', `translate(${x},${y}) rotate(${ang})`);
 }
 /* ---------- sew-out simulation ---------- */
 const sew = { stitches: [], drawn: 0, ctx: null, size: 0, colors: [] };
@@ -500,7 +506,11 @@ function drawSew(p) {
   if (!sew.ctx || !sew.stitches.length) return;
   const target = Math.floor(sew.stitches.length * Math.max(0, Math.min(1, p)));
   const c = sew.ctx, sc = sew.scale;
-  if (target < sew.drawn) { clearSew(); sew.drawn = 0; }
+  if (target < sew.drawn) {
+    const now = performance.now();
+    if (now - (sew.lastRedraw || 0) < 90) return;
+    sew.lastRedraw = now; clearSew(); sew.drawn = 0;
+  }
   c.lineCap = 'round';
   for (let i = Math.max(1, sew.drawn); i < target; i++) {
     const a = sew.stitches[i - 1], b = sew.stitches[i];
@@ -531,6 +541,10 @@ function sewProgress() {
 
 
 /* ---------- scroll-linked frame ---------- */
+let sewVisible = false, marqVisible = false;
+const floatEls = $$('[data-float]'); floatEls.forEach(el => el._f = +el.dataset.float);
+new IntersectionObserver(es => { sewVisible = es[0].isIntersecting; if (sewVisible) onScroll(); }, { rootMargin: '200px' }).observe($('#process'));
+new IntersectionObserver(es => { marqVisible = es[0].isIntersecting; }, { rootMargin: '100px' }).observe($('.vmarq'));
 let ticking = false;
 function onScroll() {
   if (ticking) return; ticking = true;
@@ -540,11 +554,11 @@ function onScroll() {
     if (!$('#view-home').classList.contains('active')) return;
     const y = scrollY;
     if (!reduce) {
-      $('#heroBg').style.transform = `translate3d(0, ${y * .3}px, 0)`;
-      $$('[data-float]').forEach(el => { const r = $('#process').getBoundingClientRect(); el.style.transform = `translate3d(0, ${r.top * el.dataset.float}px, 0)`; });
+      if (y < innerHeight * 1.2) $('#heroBg').style.transform = `translate3d(0, ${y * .3}px, 0)`;
+      if (sewVisible && innerWidth > 900) { const top = $('#process').getBoundingClientRect().top; floatEls.forEach(el => { el.style.transform = `translate3d(0, ${top * el._f}px, 0)`; }); }
     }
     drawThread(introP);
-    drawSew(reduce ? 1 : sewProgress());
+    if (sewVisible || reduce) drawSew(reduce ? 1 : sewProgress());
   });
 }
 addEventListener('scroll', onScroll, { passive: true });
@@ -706,13 +720,15 @@ function setupScrollFX() {
   }
 
   // velocity marquee
-  const rows = $$('.vrow').map(r => ({ el: r, x: 0, dir: +r.dataset.dir }));
+  const rows = $$('.vrow').map(r => ({ el: r, x: 0, dir: +r.dataset.dir, w: r.scrollWidth / 2 || 1 }));
+  addEventListener('resize', () => rows.forEach(r => r.w = r.el.scrollWidth / 2 || 1));
   let vel = 0, lastY = scrollY;
   gsap.ticker.add(() => {
+    if (!marqVisible) return;
     const v = (lenis ? lenis.velocity : (scrollY - lastY)); lastY = scrollY;
     vel += (v - vel) * .1;
     rows.forEach(r => {
-      const w = r.el.scrollWidth / 2 || 1;
+      const w = r.w;
       r.x -= r.dir * (1.1 + Math.min(Math.abs(vel), 40) * (finePointer ? .35 : .12));
       if (r.x <= -w) r.x += w; if (r.x > 0) r.x -= w;
       r.el.style.transform = finePointer ? `translate3d(${r.x}px,0,0) skewX(${gsap.utils.clamp(-10, 10, -vel * .35)}deg)` : `translate3d(${r.x}px,0,0)`;
@@ -725,7 +741,7 @@ function setupScrollFX() {
   $$('.wcard').forEach((c, i) => {
     gsap.fromTo(c, { clipPath: 'inset(100% 0% 0% 0%)', y: 80 }, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1.4, ease: 'expo.out', delay: (i % 3) * .08, scrollTrigger: { trigger: c, start: 'top 95%', end: 'bottom 2%', toggleActions: IO } });
     const img = c.querySelector('img');
-    gsap.fromTo(img, { scale: 1.28, yPercent: -7 }, { scale: 1.1, yPercent: 7, ease: 'none', scrollTrigger: { trigger: c, start: 'top bottom', end: 'bottom top', scrub: true } });
+    gsap.fromTo(img, { scale: 1.22, yPercent: -6 }, { scale: 1.08, yPercent: 6, ease: 'none', scrollTrigger: { trigger: c, start: 'top bottom', end: 'bottom top', scrub: true, onToggle: s => c.classList.toggle('inview', s.isActive) } });
   });
 
   // services rows
@@ -847,3 +863,19 @@ fontsReady.then(() => {
 });
 addEventListener('load', () => { fitMark(); if (hasGSAP) ScrollTrigger.refresh(); buildThread(); onScroll(); });
 
+
+/* ---------- adaptive quality: if frames run slow, switch 3D to a lighter mode ---------- */
+(() => {
+  if (window.E1_lowPower) return;
+  const d = []; let last = 0, t0 = 0;
+  const probe = now => {
+    if (last) d.push(now - last);
+    last = now;
+    if (!t0) t0 = now;
+    if (now - t0 < 4000) return requestAnimationFrame(probe);
+    d.sort((x, y) => x - y);
+    const med = d[Math.floor(d.length / 2)] || 16;
+    if (med > 24) { window.E1_lowPower = true; dispatchEvent(new Event('e1:lowpower')); }
+  };
+  setTimeout(() => requestAnimationFrame(probe), 3500);
+})();

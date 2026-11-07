@@ -11,8 +11,10 @@ try {
 if (!renderer || !WORK.length) {
   document.documentElement.classList.add('no-webgl');
 } else {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.25 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  addEventListener('e1:lowpower', () => { renderer.setPixelRatio(1); resize(); });
+  if (window.E1_lowPower) renderer.setPixelRatio(1);
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x050506, 9.5, 17.5);
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);

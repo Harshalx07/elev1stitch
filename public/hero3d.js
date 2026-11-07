@@ -10,7 +10,7 @@ if (renderer && host) {
   const canvas = renderer.domElement;
   canvas.className = 'hero-gl';
   host.appendChild(canvas);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.25 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
@@ -45,7 +45,7 @@ if (renderer && host) {
         float d = texture2D(uDepth, uv).r;
         // iterative parallax for cleaner edges
         vec2 p = uv;
-        for (int i = 0; i < 4; i++) { d = texture2D(uDepth, p).r; p = uv + off * (d - 0.45) * vec2(0.022, 0.016) * (1.0 + uScroll * 1.5); }
+        for (int i = 0; i < 2; i++) { d = texture2D(uDepth, p).r; p = uv + off * (d - 0.45) * vec2(0.022, 0.016) * (1.0 + uScroll * 1.5); }
         vec3 fx = texture2D(uFx, p).rgb;
         // breathing: the figure gently rises and falls
         float body = fx.b;
@@ -98,14 +98,19 @@ if (renderer && host) {
   let visible = true;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(host);
   const clock = new THREE.Clock();
-  (function tick() {
+  let cap = window.E1_lowPower ? 30 : 60, lastT = 0;
+  addEventListener('e1:lowpower', () => { cap = 30; renderer.setPixelRatio(1); resize(); });
+  if (window.E1_lowPower) renderer.setPixelRatio(1);
+  (function tick(now) {
     requestAnimationFrame(tick);
     if (!visible || !ready || document.hidden) return;
+    if (now - lastT < 1000 / cap - 2) return;
+    lastT = now;
     if (host.clientWidth !== uniforms.uView.value.x) resize();
     uniforms.uTime.value = clock.getElapsedTime();
     uniforms.uMouse.value.lerp(target, 0.05);
     const hh = host.clientHeight || 1;
     uniforms.uScroll.value = Math.min(1, Math.max(0, window.scrollY / hh));
     renderer.render(scene, camera);
-  })();
+  })(0);
 }

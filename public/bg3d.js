@@ -8,8 +8,8 @@ if (renderer) {
   const c = renderer.domElement;
   c.id = 'bgCanvas';
   document.body.prepend(c);
-  const scale = 0.5;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2) * scale);
+  const scale = 0.32;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5) * scale);
   const scene = new THREE.Scene();
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const u = { uT: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uScroll: { value: 0 }, uMouse: { value: new THREE.Vector2() } };
@@ -22,7 +22,7 @@ if (renderer) {
       float h(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 45758.5453); }
       float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
         return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
-      float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a * n(p); p = p * 2.03 + 17.1; a *= 0.5; } return v; }
+      float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 3; i++){ v += a * n(p); p = p * 2.03 + 17.1; a *= 0.5; } return v; }
       void main(){
         vec2 uv = vUv; float ar = uRes.x / uRes.y;
         vec2 p = vec2(uv.x * ar, uv.y) * 1.6 + vec2(0.0, uScroll * 0.00035) + uMouse * 0.04;
@@ -51,10 +51,15 @@ if (renderer) {
   addEventListener('resize', resize); resize();
   const m = new THREE.Vector2();
   addEventListener('pointermove', e => m.set(e.clientX / innerWidth - 0.5, 0.5 - e.clientY / innerHeight));
-  const clock = new THREE.Clock(); let last = 0;
+  const clock = new THREE.Clock(); let last = 0, frozen = !!window.E1_lowPower;
+  addEventListener('e1:lowpower', () => { frozen = true; });
   (function tick(now) {
     requestAnimationFrame(tick);
-    if (document.hidden || now - last < 33) return; last = now; // ~30fps is plenty for a slow nebula
+    if (document.hidden || now - last < 42) return; // ~24fps is plenty for a slow nebula
+    if (frozen && last) return; // slow device: keep the last frame as a still background
+    const home = document.getElementById('view-home');
+    if (home && home.classList.contains('active') && scrollY < innerHeight * 0.55 && last) return; // hero image covers it
+    last = now;
     u.uT.value = reduce ? 10 : clock.getElapsedTime();
     u.uScroll.value = scrollY;
     u.uMouse.value.lerp(m, 0.04);
