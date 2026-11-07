@@ -59,9 +59,9 @@ if (renderer && host) {
         col += vec3(1.0, 0.62, 0.28) * fx.g * pulse * 0.32 * uStrength;
         // depth haze: background dims slightly, figure pops
         float dd = texture2D(uDepth, p).r;
-        col *= mix(0.78, 1.06, smoothstep(0.1, 0.7, dd));
+        col *= mix(0.97, 1.03, smoothstep(0.1, 0.7, dd));
         // intro + scroll fade
-        col *= mix(0.08, 1.0, uIntro) * (1.0 - uScroll * 0.55);
+        col *= mix(0.08, 1.0, uIntro) * (1.0 - uScroll * 0.35);
         gl_FragColor = vec4(col, 1.0);
       }`
   });
@@ -70,7 +70,7 @@ if (renderer && host) {
 
   let ready = 0;
   const done = () => { if (++ready === 3) { host.classList.add('gl-on'); } };
-  loader.load('assets/hero.webp', t => { t.colorSpace = THREE.SRGBColorSpace; t.minFilter = THREE.LinearFilter; uniforms.uImg.value = t; done(); });
+  loader.load('assets/hero.webp', t => { t.colorSpace = THREE.NoColorSpace; t.minFilter = THREE.LinearFilter; /* pass original colours straight through */ uniforms.uImg.value = t; done(); });
   loader.load('assets/hero-depth.png', t => { uniforms.uDepth.value = t; done(); });
   loader.load('assets/hero-fx.png', t => { uniforms.uFx.value = t; done(); });
 
@@ -94,6 +94,7 @@ if (renderer && host) {
   };
 
   if (window.E1_introPlayed) window.E1_hero3d.intro();
+  setTimeout(() => { if (uniforms.uIntro.value < 0.5) window.E1_hero3d.intro(); }, 4500); // never stay dark
   let visible = true;
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(host);
   const clock = new THREE.Clock();
